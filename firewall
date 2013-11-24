@@ -1,0 +1,43 @@
+#!/bin/sh
+ipt=/sbin/iptables
+lan=eth0
+ext=eth1
+
+#clean tables first
+echo "cleaning tables..."
+$ipt -F
+$ipt -t nat -F
+$ipt -t mangle -F
+
+#enable ip forwarding
+echo "enable forwarding"
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+#set default policies
+echo "set drop as default policy"
+$ipt -P INPUT DROP
+$ipt -P FORWARD DROP
+
+#setting static NAT
+echo "setting nat"
+#$ipt -t nat -A POSTROUTING -o $ext -j SNAT --to-source 192.168.1.181
+
+#setting dynamic NAT
+$ipt -t nat -A POSTROUTING -o $ext -j MASQUERADE
+
+#INPUT chain (eth0 internal, eth1 external)
+echo "set INPUT chain"
+$ipt -A INPUT -i lo -j ACCEPT
+$ipt -A INPUT -i $lan -s 172.16.0.0/24 -j ACCEPT
+$ipt -A INPUT -i $ext -m state --state ESTABLISHED,RELATED -j ACCEPT
+$ipt -A INPUT -i $ext -p gre -j ACCEPT
+$ipt -A INPUT -i $ext -p tcp --dport 1723 -j ACCEPT
+$ipt -A INPUT -p tcp --destination-port 22 -j ACCEPT
+
+#FORWARD chain
+echo "set FORWARD chain"
+$ipt -A FORWARD -i $lan -s 172.16.0.0/24 -j ACCEPT
+$ipt -A FORWARD -i $ext -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+#PREROUTING
+$ipt -t nat -A PREROUTING -i $lan -p tcp --dport 80 -j REDIRECT --to-port 3128
