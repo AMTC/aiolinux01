@@ -1,0 +1,42 @@
+#!/bin/sh
+tcb=/sbin/tc
+lan=eth0
+ext=eth1
+
+#outgoing traffic (uploading)
+#declare parent qdisc
+echo "declare parent qdiscs uploading"
+$tcb qdisc del dev $ext root handle 1:
+$tcb qdisc add dev $ext root handle 1: htb default 20
+
+#declare user classes
+echo "declare user classes"
+$tcb class add dev $ext parent 1: classid 1:1 htb rate 1mbps 
+echo "add class 10"
+$tcb class add dev $ext parent 1:1 classid 1:10 htb rate 256kbps ceil 256kbps
+echo "add class 20"
+$tcb class add dev $ext parent 1:1 classid 1:20 htb rate 756kbps ceil 1mbps
+
+#connect traffic to classes
+echo "connect traffic to classes"
+$tcb filter add dev $ext parent 1: protocol ip prio 1 u32 \
+    match ip dst 0.0.0.0/0 \
+	match ip dport 80 0xffff flowid 1:10
+	
+#incoming traffic (downloading)
+#declare parent qdisc
+echo "declare parent qdiscs downloading"
+$tcb qdisc del dev $lan root handle 1:
+$tcb qdisc add dev $lan root handle 1: htb default 20
+
+#declare user classes
+#echo "declare user classes"
+$tcb class add dev $lan parent 1: classid 1:1 htb rate 1mbps 
+$tcb class add dev $lan parent 1:1 classid 1:10 htb rate 256kbps ceil 256kbps
+$tcb class add dev $lan parent 1:1 classid 1:20 htb rate 256kbps ceil 1mbps
+
+#connect traffic to classes
+#echo "connect traffic to classes"
+$tcb filter add dev $lan parent 1: protocol ip prio 1 u32 \
+    match ip dst 172.16.0.0/24 \
+	match ip sport 80 0xffff flowid 1:10
