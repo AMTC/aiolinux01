@@ -1,0 +1,12 @@
+$TTL 14400
+@	86400	IN	SOA	ns.aiolinux.ro. administrator@aiolinux.ro. (
+		2013031202	;serial
+		86400		;refersh seconds
+		7200		;retry seconds
+		3600000		;expire seconds
+		86400)		;minimum seconds
+		IN	NS	ns.aiolinux.ro.
+		IN	MX	10	mail.aiolinux.ro.
+ns		IN	A	192.168.0.181
+mail		IN	CNAME	ns.aiolinux.ro.
+www		IN	A	192.168.0.181
